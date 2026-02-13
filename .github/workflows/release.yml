@@ -114,7 +114,7 @@ jobs:
             cross: true
           # macOS
           - target: x86_64-apple-darwin
-            os: macos-13
+            os: macos-latest
             archive: tar.gz
             cross: false
           - target: aarch64-apple-darwin
@@ -171,12 +171,12 @@ jobs:
       - name: Create archive (windows)
         if: matrix.archive == 'zip'
         run: |
-          mkdir -p dist staging/mtuspy
-          cp "target/${{ matrix.target }}/release/mtuspy.exe" staging/mtuspy/
-          ARCHIVE="mtuspy-${{ needs.version.outputs.version }}-${{ matrix.target }}.zip"
-          cd staging && zip -r "../dist/${ARCHIVE}" mtuspy
-          echo "ARCHIVE=${ARCHIVE}" >> $GITHUB_ENV
-        shell: bash
+          $ARCHIVE = "mtuspy-${{ needs.version.outputs.version }}-${{ matrix.target }}.zip"
+          New-Item -ItemType Directory -Force -Path dist, staging/mtuspy
+          Copy-Item "target/${{ matrix.target }}/release/mtuspy.exe" staging/mtuspy/
+          Compress-Archive -Path staging/mtuspy -DestinationPath "dist/$ARCHIVE"
+          "ARCHIVE=$ARCHIVE" | Out-File -Append -FilePath $env:GITHUB_ENV
+        shell: pwsh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
