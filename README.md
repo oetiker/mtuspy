@@ -1,5 +1,7 @@
 # mtuspy
 
+[![CI](https://github.com/oetiker/mtuspy/actions/workflows/ci.yml/badge.svg)](https://github.com/oetiker/mtuspy/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/oetiker/mtuspy)](https://github.com/oetiker/mtuspy/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A command-line tool to discover the Path MTU (Maximum Transmission Unit) to a network host using native ICMP sockets.
