@@ -84,16 +84,16 @@ jobs:
       - name: Build
         run: cargo build
 
-      - name: Discover MTU to 8.8.8.8
-        run: sudo ./target/debug/mtuspy 8.8.8.8
+      - name: Discover MTU to localhost
+        run: sudo ./target/debug/mtuspy 127.0.0.1
 
       - name: Verify quiet mode output
         run: |
-          MTU=$(sudo ./target/debug/mtuspy --quiet 8.8.8.8)
+          MTU=$(sudo ./target/debug/mtuspy --quiet 127.0.0.1)
           echo "Detected MTU: $MTU"
-          if [ "$MTU" -ge 1200 ] && [ "$MTU" -le 9000 ]; then
-            echo "MTU is within expected range"
+          if [ "$MTU" -eq 9000 ]; then
+            echo "Loopback MTU matches expected max (9000)"
           else
-            echo "ERROR: MTU $MTU is outside expected range (1200-9000)"
+            echo "ERROR: expected MTU 9000 on loopback, got $MTU"
             exit 1
           fi
