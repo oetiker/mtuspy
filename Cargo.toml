@@ -1,0 +1,13 @@
+[package]
+name = "mtuspy"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Path MTU discovery tool using native ICMP with Don't Fragment bit"
+license = "MIT"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+socket2 = { version = "0.5", features = ["all"] }
+libc = "0.2"

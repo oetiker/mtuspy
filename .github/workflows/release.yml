@@ -1,0 +1,226 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        type: choice
+        options:
+          - bugfix
+          - feature
+          - major
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  version:
+    name: Bump Version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify main branch
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error::Releases must be created from the main branch"
+            exit 1
+          fi
+
+      - name: Calculate new version
+        id: version
+        run: |
+          # Get latest tag or default to v0.0.0
+          LATEST=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -1 || echo "v0.0.0")
+          if [ -z "$LATEST" ]; then
+            LATEST="v0.0.0"
+          fi
+
+          # Parse version components
+          MAJOR=$(echo "$LATEST" | sed 's/v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/\1/')
+          MINOR=$(echo "$LATEST" | sed 's/v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/\2/')
+          PATCH=$(echo "$LATEST" | sed 's/v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/\3/')
+
+          # Calculate new version based on release type
+          case "${{ inputs.release_type }}" in
+            major)
+              NEW_VERSION="$((MAJOR+1)).0.0"
+              ;;
+            feature)
+              NEW_VERSION="${MAJOR}.$((MINOR+1)).0"
+              ;;
+            bugfix)
+              NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH+1))"
+              ;;
+          esac
+
+          echo "version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=v${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "New version: ${NEW_VERSION}"
+
+      - name: Update Cargo.toml version
+        run: |
+          sed -i 's/^version = ".*"/version = "${{ steps.version.outputs.version }}"/' Cargo.toml
+
+      - name: Update CHANGES.md
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Update changelog: move Unreleased content to new version section
+          perl -i -0777 -pe '
+            s/## Unreleased\n+(### New\n(.*?))?(\n### Changed\n(.*?))?(\n### Fixed\n(.*?))?\n+(?=##|\z)/
+              "## Unreleased\n\n### New\n\n### Changed\n\n### Fixed\n\n" .
+              "## '"$VERSION"' - '"$DATE"'\n" .
+              ($2 ? "\n### New\n$2" : "") .
+              ($4 ? "\n### Changed\n$4" : "") .
+              ($6 ? "\n### Fixed\n$6" : "") .
+              "\n"
+            /se' CHANGES.md
+
+      - name: Commit and tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml CHANGES.md
+          git commit -m "Release ${{ steps.version.outputs.tag }}"
+          git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
+          git push origin main --tags
+
+  build-binaries:
+    name: Build ${{ matrix.target }}
+    needs: version
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          # Linux
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            archive: tar.gz
+            cross: true
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            archive: tar.gz
+            cross: true
+          # macOS
+          - target: x86_64-apple-darwin
+            os: macos-13
+            archive: tar.gz
+            cross: false
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: tar.gz
+            cross: false
+          # Windows
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+            cross: false
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+            cross: false
+          # Illumos
+          - target: x86_64-unknown-illumos
+            os: ubuntu-latest
+            archive: tar.gz
+            cross: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.tag }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross
+        if: matrix.cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build binary
+        run: |
+          if [ "${{ matrix.cross }}" = "true" ]; then
+            RUSTFLAGS="-C target-feature=+crt-static" cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+        shell: bash
+
+      - name: Create archive (unix)
+        if: matrix.archive == 'tar.gz'
+        run: |
+          mkdir -p dist staging/mtuspy
+          cp "target/${{ matrix.target }}/release/mtuspy" staging/mtuspy/
+          ARCHIVE="mtuspy-${{ needs.version.outputs.version }}-${{ matrix.target }}.tar.gz"
+          tar -czvf "dist/${ARCHIVE}" -C staging mtuspy
+          echo "ARCHIVE=${ARCHIVE}" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Create archive (windows)
+        if: matrix.archive == 'zip'
+        run: |
+          mkdir -p dist staging/mtuspy
+          cp "target/${{ matrix.target }}/release/mtuspy.exe" staging/mtuspy/
+          ARCHIVE="mtuspy-${{ needs.version.outputs.version }}-${{ matrix.target }}.zip"
+          cd staging && zip -r "../dist/${ARCHIVE}" mtuspy
+          echo "ARCHIVE=${ARCHIVE}" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mtuspy-${{ matrix.target }}
+          path: dist/*
+
+  create-release:
+    name: Create GitHub Release
+    needs: [version, build-binaries]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.tag }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: mtuspy-*
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la artifacts/
+
+      - name: Extract release notes
+        id: changelog
+        run: |
+          VERSION="${{ needs.version.outputs.version }}"
+          NOTES=$(sed -n "/^## ${VERSION}/,/^## [0-9]/p" CHANGES.md | sed '$d')
+          echo "$NOTES" > release-notes.md
+          echo "Release notes:"
+          cat release-notes.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.tag }}
+          name: mtuspy ${{ needs.version.outputs.tag }}
+          body_path: release-notes.md
+          files: artifacts/*
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: false
