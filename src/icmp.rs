@@ -278,7 +278,7 @@ fn set_df_bit(socket: &Socket, addr: &IpAddr) -> Result<()> {
     const IPV6_DONTFRAG: i32 = 14;
 
     #[link(name = "ws2_32")]
-    extern "system" {
+    unsafe extern "system" {
         fn setsockopt(
             s: usize,
             level: i32,
