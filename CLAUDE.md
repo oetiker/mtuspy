@@ -23,12 +23,14 @@ Update `CHANGES.md` under the `## Unreleased` section when making user-visible c
 Use the appropriate subsection: `### New` for features, `### Changed` for modifications, `### Fixed` for bug fixes.
 The release workflow automatically moves unreleased entries into a versioned section.
 
+**Always update CHANGES.md with every commit that changes behavior, fixes bugs, or adds features.**
+
 ## Git workflow
 
 The release workflow (`gh workflow_dispatch`) bumps versions and pushes tags automatically.
 This means the remote may have commits you don't have locally.
 
-**Always `git pull --rebase` before pushing.** The CI may have pushed release commits.
+**Always `git pull --rebase` before pushing.** The CI may have pushed release commits or version bumps. Failing to pull first will cause push rejections.
 
 ## Architecture
 
