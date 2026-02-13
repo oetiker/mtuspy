@@ -6,8 +6,13 @@
 
 ### Changed
 
-- Shrink release binaries (~616K, down from 1.2 MB) via strip, LTO, and size optimization
+### Fixed
 
+## 0.1.3 - 2026-02-13
+
+### Changed
+
+- Shrink release binaries (~616K, down from 1.2 MB) via strip, LTO, and size optimization
 ### Fixed
 
 ## 0.1.2 - 2026-02-13
