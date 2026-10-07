@@ -12,6 +12,39 @@ anyhow = "1"
 socket2 = { version = "0.5", features = ["all"] }
 libc = "0.2"
 
+[package.metadata.deb]
+maintainer = "Tobias Oetiker <tobi@oetiker.ch>"
+copyright = "2026, Tobias Oetiker <tobi@oetiker.ch>"
+license-file = ["LICENSE", "0"]
+extended-description = """\
+Discovers the Path MTU to a network host. It sends ICMP echo requests with \
+the Don't Fragment bit set and finds the largest packet that gets through \
+with a binary search. A single static binary."""
+section = "net"
+priority = "optional"
+# setcap comes from libcap2-bin; the postinst skips it when it is missing.
+recommends = "libcap2-bin"
+maintainer-scripts = "pkg/debian/"
+assets = [
+    ["target/release/mtuspy", "usr/bin/", "755"],
+    ["man/mtuspy.1", "usr/share/man/man1/", "644"],
+    ["README.md", "usr/share/doc/mtuspy/README.md", "644"],
+]
+
+[package.metadata.generate-rpm]
+summary = "Path MTU discovery tool using native ICMP with Don't Fragment bit"
+license = "MIT"
+# The musl builds are statically linked, so there is nothing to depend on, and the
+# host's find-requires cannot inspect a cross-built aarch64 binary anyway.
+auto-req = "no"
+post_install_script = "pkg/rpm/post-install.sh"
+assets = [
+    { source = "target/release/mtuspy", dest = "/usr/bin/mtuspy", mode = "755" },
+    { source = "man/mtuspy.1", dest = "/usr/share/man/man1/mtuspy.1", mode = "644", doc = true },
+    { source = "README.md", dest = "/usr/share/doc/mtuspy/README.md", mode = "644", doc = true },
+    { source = "LICENSE", dest = "/usr/share/doc/mtuspy/LICENSE", mode = "644", doc = true },
+]
+
 [profile.release]
 strip = true
 lto = true

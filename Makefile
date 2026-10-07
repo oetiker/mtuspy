@@ -1,5 +1,10 @@
 # mtuspy Makefile
 
+# The man page, built from docs/manual.md by build/man.mk (owned by repo-infra).
+# man/ is gitignored: the page is a build artifact.
+MAN_NAME = mtuspy
+include build/man.mk
+
 .PHONY: all build release debug run clean check fmt lint test help
 
 # Default target
@@ -63,4 +68,5 @@ help:
 	@echo "  make lint         Run clippy"
 	@echo "  make test         Run tests"
 	@echo "  make check        Format, lint, and test"
+	@echo "  make man         Build the man page into man/ (needs pandoc)"
 	@echo "  make clean        Clean all build artifacts"

@@ -1,0 +1,14 @@
+#!/bin/sh
+# dpkg does not carry file capabilities through unpacking, so cap_net_raw is set
+# here, the way iputils-ping does it. Without it a raw ICMP socket needs root
+# wherever net.ipv4.ping_group_range excludes the user. A failed setcap (a
+# filesystem without xattrs, a missing libcap2-bin) leaves mtuspy installed; it
+# then prints its own permission advice when run.
+set -e
+if [ "$1" = configure ]; then
+    if command -v setcap >/dev/null 2>&1; then
+        setcap cap_net_raw+ep /usr/bin/mtuspy \
+            || echo "mtuspy: setcap cap_net_raw failed; run mtuspy with sudo" >&2
+    fi
+fi
+exit 0

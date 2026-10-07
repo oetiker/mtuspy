@@ -1,0 +1,50 @@
+name: CI (mtuspy's own jobs)
+
+# Called by ci.yml's ci-local job; never triggered on its own. Create release
+# PR runs ci.yml on the release branch and passes the commit down in `ref`; on
+# push and pull_request it is empty and checkout uses its default commit.
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  smoke-test:
+    name: Smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build
+        run: cargo build
+
+      - name: Discover MTU to localhost
+        run: sudo ./target/debug/mtuspy 127.0.0.1
+
+      # The runner's loopback has an MTU of 65536, so the search ends at the
+      # default --max of 9000.
+      - name: Verify quiet mode output
+        run: |
+          MTU=$(sudo ./target/debug/mtuspy --quiet 127.0.0.1)
+          echo "Detected MTU: $MTU"
+          if [ "$MTU" -eq 9000 ]; then
+            echo "Loopback MTU matches expected max (9000)"
+          else
+            echo "ERROR: expected MTU 9000 on loopback, got $MTU"
+            exit 1
+          fi

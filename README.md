@@ -23,6 +23,28 @@ Unlike shell-based approaches that call `ping` in a loop, `mtuspy` uses native I
 
 ## Installation
 
+### Homebrew (macOS, Linux)
+
+```bash
+brew tap oetiker/mtuspy https://github.com/oetiker/mtuspy
+brew install mtuspy
+```
+
+### Debian, Ubuntu, Fedora, RHEL
+
+Download the `.deb` or `.rpm` for your architecture from the [latest release](https://github.com/oetiker/mtuspy/releases/latest) and install it:
+
+```bash
+sudo apt install ./mtuspy_*_amd64.deb
+sudo dnf install ./mtuspy-*.x86_64.rpm
+```
+
+The packages also live in the package registry at [gitea.oetiker.ch/oposs](https://gitea.oetiker.ch/oposs/-/packages). They grant `cap_net_raw` to `/usr/bin/mtuspy`, so no sudo is needed to run it.
+
+### Binaries
+
+The [releases page](https://github.com/oetiker/mtuspy/releases/latest) has archives for Linux (static musl), macOS, Windows and Illumos.
+
 ### Building from Source
 
 Requires Rust 1.85 or later.
