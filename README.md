@@ -40,9 +40,10 @@ brew install mtuspy
 Add the signed apt repository of the oposs package registry, then install. `apt upgrade` picks up new releases.
 
 ```bash
+sudo install -d -m 0755 /etc/apt/keyrings
 sudo curl -fsSL https://gitea.oetiker.ch/api/packages/oposs/debian/repository.key \
-    -o /etc/apt/keyrings/oposs.asc
-echo "deb [signed-by=/etc/apt/keyrings/oposs.asc] https://gitea.oetiker.ch/api/packages/oposs/debian stable main" \
+    -o /etc/apt/keyrings/gitea-oposs.asc
+echo "deb [signed-by=/etc/apt/keyrings/gitea-oposs.asc] https://gitea.oetiker.ch/api/packages/oposs/debian stable main" \
     | sudo tee /etc/apt/sources.list.d/oposs.list
 sudo apt update
 sudo apt install mtuspy
