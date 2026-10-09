@@ -25,25 +25,54 @@ Unlike shell-based approaches that call `ping` in a loop, `mtuspy` uses native I
 
 ### Homebrew (macOS, Linux)
 
+This repository is its own tap:
+
 ```bash
 brew tap oetiker/mtuspy https://github.com/oetiker/mtuspy
+brew trust --formula oetiker/mtuspy/mtuspy
 brew install mtuspy
 ```
 
-### Debian, Ubuntu, Fedora, RHEL
+`brew trust` exists from Homebrew 6 on; skip it on older versions.
 
-Download the `.deb` or `.rpm` for your architecture from the [latest release](https://github.com/oetiker/mtuspy/releases/latest) and install it:
+### Debian, Ubuntu
+
+Add the signed apt repository of the oposs package registry, then install. `apt upgrade` picks up new releases.
 
 ```bash
-sudo apt install ./mtuspy_*_amd64.deb
-sudo dnf install ./mtuspy-*.x86_64.rpm
+sudo curl -fsSL https://gitea.oetiker.ch/api/packages/oposs/debian/repository.key \
+    -o /etc/apt/keyrings/oposs.asc
+echo "deb [signed-by=/etc/apt/keyrings/oposs.asc] https://gitea.oetiker.ch/api/packages/oposs/debian stable main" \
+    | sudo tee /etc/apt/sources.list.d/oposs.list
+sudo apt update
+sudo apt install mtuspy
 ```
 
-The packages also live in the package registry at [gitea.oetiker.ch/oposs](https://gitea.oetiker.ch/oposs/-/packages). They grant `cap_net_raw` to `/usr/bin/mtuspy`, so no sudo is needed to run it.
+### Fedora, RHEL, Rocky, Alma
 
-### Binaries
+Add the signed rpm repository, then install. `dnf upgrade` picks up new releases.
+
+```bash
+sudo curl -fsSL https://gitea.oetiker.ch/api/packages/oposs/rpm.repo \
+    -o /etc/yum.repos.d/oposs.repo
+sudo dnf install mtuspy
+```
+
+The `.deb` and `.rpm` packages grant `cap_net_raw` to `/usr/bin/mtuspy`, so it runs without sudo.
+The same files are on the [releases page](https://github.com/oetiker/mtuspy/releases/latest) for a machine without repository access.
+
+### Other systems
 
 The [releases page](https://github.com/oetiker/mtuspy/releases/latest) has archives for Linux (static musl), macOS, Windows and Illumos.
+The Linux, macOS and Illumos archives carry the man page beside the binary:
+
+```bash
+tar xzf mtuspy-*-x86_64-unknown-linux-musl.tar.gz
+sudo install -Dm755 mtuspy/mtuspy       /usr/local/bin/mtuspy
+sudo install -Dm644 mtuspy/man/mtuspy.1 /usr/local/share/man/man1/mtuspy.1
+```
+
+See [Permissions](#permissions) for running it without sudo.
 
 ### Building from Source
 
@@ -55,7 +84,7 @@ cd mtuspy
 make release
 ```
 
-The binary will be at `target/release/mtuspy`.
+The binary will be at `target/release/mtuspy`. `make man` builds the man page into `man/mtuspy.1`; it needs pandoc.
 
 ### Permissions
 
