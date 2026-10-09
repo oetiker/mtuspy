@@ -1,19 +1,26 @@
 # Changelog
 
-## Unreleased
+## [Unreleased]
 
 ### New
 
+- `.deb` and `.rpm` packages for Linux on x86_64 and aarch64, attached to each release and published in the package registry on gitea.oetiker.ch (owner `oposs`). On install they grant `cap_net_raw` to `/usr/bin/mtuspy`, so it runs without sudo.
+- Homebrew formula: `brew tap oetiker/mtuspy https://github.com/oetiker/mtuspy` and `brew install mtuspy`.
+- Man page `mtuspy(1)`, included in the release archives and the packages.
+
 ### Changed
 
+- Releases are prepared as a release pull request (Actions, Create release PR) instead of the Release workflow. The release is tagged and published when that pull request merges.
+
 ### Fixed
+
+- `cargo build --locked` from a source checkout failed because `Cargo.lock` still named mtuspy 0.1.0; each release now updates it together with `Cargo.toml`.
 
 ## 0.1.3 - 2026-02-13
 
 ### Changed
 
 - Shrink release binaries (~616K, down from 1.2 MB) via strip, LTO, and size optimization
-### Fixed
 
 ## 0.1.2 - 2026-02-13
 
