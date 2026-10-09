@@ -4,7 +4,7 @@
 #   brew install mtuspy
 #
 # The version and the four sha256 lines are rewritten by
-# .github/workflows/release-build-local.yml after the release artifacts exist. The
+# .github/workflows/release-build.yml after the release artifacts exist. The
 # trailing marker comments are what that rewrite matches on: do not remove them.
 # The values below are placeholders until the first release built by that workflow.
 class Mtuspy < Formula
@@ -16,7 +16,7 @@ class Mtuspy < Formula
   # Without a bottle, Homebrew treats this formula as a source build and refuses to
   # install on a Mac whose Command Line Tools are older than its macOS, although
   # nothing here is compiled. The block is rewritten by
-  # .github/workflows/release-build-local.yml once a release's bottles exist, and
+  # .github/workflows/release-build.yml once a release's bottles exist, and
   # the marker comments are the range that rewrite replaces: do not remove them.
   #
   # One bottle per architecture is enough: on macOS, Homebrew falls back to a bottle

@@ -43,12 +43,40 @@ jobs:
     with:
       ref: ${{ inputs.ref }}
 
-  # mtuspy's own jobs: the smoke test against localhost.
-  ci-local:
+  # mtuspy's own job: MTU discovery against localhost.
+  smoke-test:
+    name: Smoke test
     if: ${{ !(github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/') && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'github-actions[bot]') }}
-    uses: ./.github/workflows/ci-local.yml
-    with:
-      ref: ${{ inputs.ref }}
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build
+        run: cargo build
+
+      - name: Discover MTU to localhost
+        run: sudo ./target/debug/mtuspy 127.0.0.1
+
+      # The runner's loopback has an MTU of 65536, so the search ends at the
+      # default --max of 9000.
+      - name: Verify quiet mode output
+        run: |
+          MTU=$(sudo ./target/debug/mtuspy --quiet 127.0.0.1)
+          echo "Detected MTU: $MTU"
+          if [ "$MTU" -eq 9000 ]; then
+            echo "Loopback MTU matches expected max (9000)"
+          else
+            echo "ERROR: expected MTU 9000 on loopback, got $MTU"
+            exit 1
+          fi
 
   release-pr-current:
     if: ${{ !(github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/') && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'github-actions[bot]') }}
@@ -77,7 +105,7 @@ jobs:
   # release branch changed by accident cannot pass on library code it changed.
   ci-passed:
     if: always()
-    needs: [lib, rust, rust-musl, man, ci-local, release-pr-current]
+    needs: [lib, rust, rust-musl, man, smoke-test, release-pr-current]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
