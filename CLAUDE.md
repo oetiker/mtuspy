@@ -56,9 +56,8 @@ The CI and release workflows follow the repo-infra standard.
 Files whose first comment line reads `# repo-infra: <piece> vN` (the `ri-*.yml` workflows, `changelog.yml`, `release-pr.yml`, `lib/`, `dependabot.yml`, `build/man.mk`, `build/man-deflist.lua`) are pieces: never edit them, upgrade them with `/repo-infra:apply`.
 The callers and the project-owned files are ours:
 
-- `ci.yml` — calls the pieces (`ri-ci-rust`, `ri-ci-rust-musl`, `ri-ci-man`, ...) and `ci-local.yml`
-- `ci-local.yml` — smoke test (MTU discovery against localhost)
-- `release-build.yml` / `release-build-local.yml` — binaries for 7 targets, `.deb`/`.rpm`, Homebrew bottles and the rewritten `Formula/mtuspy.rb`
+- `ci.yml` — calls the pieces (`ri-ci-rust`, `ri-ci-rust-musl`, `ri-ci-man`, ...) and holds the inline `smoke-test` job (MTU discovery against localhost)
+- `release-build.yml` — binaries for 7 targets, `.deb`/`.rpm`, Homebrew bottles and the rewritten `Formula/mtuspy.rb`
 - `release-publish.yml` — tags, uploads `.deb`/`.rpm` to gitea.oetiker.ch, publishes the release
 - `.github/repo-infra.json` — version files, expected release assets, Gitea target
 
