@@ -1,4 +1,4 @@
-// repo-infra: workflow-lib v8
+// repo-infra: workflow-lib v9
 'use strict';
 
 // What the publish job does for a repository that builds its release before

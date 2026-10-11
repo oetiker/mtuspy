@@ -1,4 +1,4 @@
-// repo-infra: workflow-lib v8
+// repo-infra: workflow-lib v9
 'use strict';
 
 // Which workspace members ci-rust lints and tests (D24).
