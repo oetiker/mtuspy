@@ -43,23 +43,20 @@ jobs:
     name: Bottle on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
-    # Only the Intel leg may fail quietly: a missing Intel bottle is a slow
-    # install, a broken arm64 bottle is a defect. continue-on-error does
-    # nothing for a leg that never starts: mdmost v0.1.2 shipped with an empty
-    # bottle block because a retired runner label left a leg queued until
-    # GitHub cancelled it after 24 hours. The labels are kept current by hand,
-    # and a release build stuck in `queued` is the symptom.
-    continue-on-error: ${{ matrix.optional || false }}
+    # mdmost v0.1.2 shipped with an empty bottle block because a retired
+    # runner label left a leg queued until GitHub cancelled it after 24 hours.
+    # The label is kept current by hand, and a release build stuck in
+    # `queued` is the symptom.
     strategy:
-      fail-fast: false
       matrix:
         include:
-          # The oldest image per architecture: Homebrew lets a bottle serve a
-          # newer macOS, never an older one. macos-15-intel is the last Intel
-          # image GitHub offers, and its bottle serves Sequoia and later only.
+          # The oldest arm64 image: Homebrew lets a bottle serve a newer
+          # macOS, never an older one. No Intel bottle: Homebrew moved Intel
+          # macOS to Tier 3 in September 2026 and builds no Intel bottles
+          # itself. Intel Macs install from the x86_64-apple-darwin archive,
+          # and an optional Intel leg that timed out in "Set up job" turned
+          # the whole run cancelled (mtuspy proof, 2026-10-11).
           - os: macos-14
-          - os: macos-15-intel
-            optional: true
     env:
       HOMEBREW_NO_AUTO_UPDATE: 1
       HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: 1
@@ -143,8 +140,6 @@ jobs:
   formula:
     name: Rewrite the formula
     needs: bottles
-    # One architecture's bottle is worth publishing alone; zero fails below.
-    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
