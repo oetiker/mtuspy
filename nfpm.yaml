@@ -26,8 +26,8 @@ contents:
     dst: /usr/bin/mtuspy
     file_info:
       mode: 0755
-  - src: ${STAGE}/man/mtuspy.1
-    dst: /usr/share/man/man1/mtuspy.1
+  - src: ${STAGE}/man/mtuspy.1.gz
+    dst: /usr/share/man/man1/mtuspy.1.gz
     file_info:
       mode: 0644
   - src: ${STAGE}/README.md
