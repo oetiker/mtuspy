@@ -25,10 +25,11 @@ const ARCH = { 'x86_64-unknown-linux-musl': ['amd64', 'x86_64'],
 
 // A checkout as download-artifact leaves it, and stand-ins for git, tar,
 // nfpm, dpkg-deb and rpm. `archives` maps a target to the file names in its
-// artifact; `tops` is what one archive unpacks to; `name` and `version`
-// shape what the stand-in nfpm writes and what the read-back reports.
+// artifact; `tops` is what one archive unpacks to and `man` what its
+// tool/man/ holds; `name` and `version` shape what the stand-in nfpm writes
+// and what the read-back reports.
 function fakeIo({
-  config = CONFIG, archives, tops = ['tool'], name, version = (v) => v, files = 2,
+  config = CONFIG, archives, tops = ['tool'], man = [], name, version = (v) => v, files = 2,
 } = {}) {
   const dirs = new Map();
   const written = new Map();
@@ -54,8 +55,10 @@ function fakeIo({
       if (command === 'git') return '1700000000\n';
       if (command === 'tar') {
         for (const top of tops) add(args[3], top);
+        for (const page of man) add(`${args[3]}/tool/man`, page);
         return '';
       }
+      if (command === 'gzip') return '';
       if (command === 'nfpm') {
         const { PACKAGER, ARCH: arch, VERSION } = options.env;
         const rpmArch = Object.values(ARCH).find((pair) => pair[0] === arch)[1];
@@ -115,6 +118,22 @@ test('four packages are built and each is read back', () => {
   assert.equal(runs[0].env.SOURCE_DATE_EPOCH, '1700000000');
   assert.equal(runs[0].env.MTIME, '2023-11-14T22:13:20Z');
   assert.equal(runs[0].env.STAGE, '/t/stage/x86_64-unknown-linux-musl/tool');
+});
+
+test('the man pages of each archive are gzipped once, before nfpm runs', () => {
+  const { io, calls } = fakeIo({ man: ['tool.1', 'toold.8', 'notes.txt'] });
+  nfpm.run(env(), io);
+  const order = calls.map((c) => c.command).filter((c) => c === 'gzip' || c === 'nfpm');
+  assert.deepEqual(order, ['gzip', 'nfpm', 'nfpm', 'gzip', 'nfpm', 'nfpm']);
+  assert.deepEqual(calls.find((c) => c.command === 'gzip').args, ['-9n', '--',
+    '/t/stage/x86_64-unknown-linux-musl/tool/man/tool.1',
+    '/t/stage/x86_64-unknown-linux-musl/tool/man/toold.8']);
+});
+
+test('an archive without man pages runs no gzip', () => {
+  const { io, calls } = fakeIo();
+  nfpm.run(env(), io);
+  assert.equal(calls.filter((c) => c.command === 'gzip').length, 0);
 });
 
 test('every name in the config is filled in, comments and contents paths too', () => {

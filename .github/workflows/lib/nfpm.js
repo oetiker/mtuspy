@@ -164,10 +164,18 @@ function run(env, io = nodeIo()) {
     if (tops.length !== 1 || !io.isDir(`${unpacked}/${tops[0]}`)) {
       throw new Error(`${found[0]} must hold one folder, the <bin>/ of the archive layout`);
     }
+    const stage = `${unpacked}/${tops[0]}`;
+    // Debian policy 12.1 wants man pages compressed with gzip -9, and nfpm
+    // packs files as they are: the first mtuspy proof shipped mtuspy.1 where
+    // cargo-deb had shipped mtuspy.1.gz. -n keeps the name and the time out
+    // of the gzip header, so a rebuild gives the same bytes. The config
+    // names the pages with .gz.
+    const pages = io.list(`${stage}/man`).filter((page) => /\.[1-9][a-z]*$/.test(page));
+    if (pages.length > 0) {
+      io.exec('gzip', ['-9n', '--', ...pages.map((page) => `${stage}/man/${page}`)]);
+    }
     for (const [packager, extra] of Object.entries(packagers)) {
-      const values = variables({
-        version, epoch, packager, target, stage: `${unpacked}/${tops[0]}`, extra,
-      });
+      const values = variables({ version, epoch, packager, target, stage, extra });
       const expanded = `${temp}/nfpm-${target}-${packager}.yaml`;
       io.write(expanded, expand(template, values, config));
       const before = new Set(io.list('packages'));
