@@ -6,11 +6,13 @@
 
 A command-line tool to discover the Path MTU (Maximum Transmission Unit) to a network host using native ICMP sockets.
 
+![mtuspy finds the path MTU to 1.1.1.1](docs/demo/mtuspy.webp)
+
 ## Overview
 
-When configuring VPN tunnels, network interfaces, or debugging connectivity issues, knowing the actual path MTU between two hosts is essential. `mtuspy` sends ICMP echo requests with the Don't Fragment (DF) bit set and uses binary search to find the largest packet that traverses the path without fragmentation.
+`mtuspy` finds the path MTU between two hosts, for configuring VPN tunnels and network interfaces or debugging connectivity. It sends ICMP echo requests with the Don't Fragment (DF) bit set and uses binary search to find the largest packet that traverses the path without fragmentation.
 
-Unlike shell-based approaches that call `ping` in a loop, `mtuspy` uses native ICMP sockets and the kernel's Path MTU Discovery mechanism. Once a router reports that a packet is too large (EMSGSIZE), subsequent oversized probes fail immediately without waiting for a timeout.
+`mtuspy` opens ICMP sockets itself and uses the kernel's Path MTU Discovery mechanism. Once a router reports that a packet is too large (EMSGSIZE), subsequent oversized probes fail immediately without waiting for a timeout.
 
 ## Features
 
@@ -18,16 +20,32 @@ Unlike shell-based approaches that call `ping` in a loop, `mtuspy` uses native I
 - **Binary search** - Finds the exact MTU in ~14 probes for the full 0-9000 byte range
 - **IPv4 and IPv6** - Automatic detection or force with `-4`/`-6`
 - **Cross-platform** - Linux, macOS, Windows, and Illumos
-- **Smart permissions** - Tries unprivileged ICMP first, falls back to raw sockets, gives actionable fix advice on failure
+- **Permission fallback** - Tries unprivileged ICMP first, falls back to raw sockets, gives actionable fix advice on failure
 - **Quiet mode** - Machine-readable output for scripting
 
 ## Installation
 
+### Debian, Ubuntu
+
+```sh
+sudo install -d -m 0755 /etc/apt/keyrings
+sudo curl -fsSL -o /etc/apt/keyrings/gitea-oposs.asc https://gitea.oetiker.ch/api/packages/oposs/debian/repository.key
+echo "deb [signed-by=/etc/apt/keyrings/gitea-oposs.asc] https://gitea.oetiker.ch/api/packages/oposs/debian stable main" | sudo tee /etc/apt/sources.list.d/oposs.list
+sudo apt update && sudo apt install mtuspy
+```
+
+### Fedora, RHEL, Rocky, Alma
+
+```sh
+sudo curl -fsSL -o /etc/yum.repos.d/oposs.repo https://gitea.oetiker.ch/api/packages/oposs/rpm.repo
+sudo dnf install mtuspy
+```
+
+The `.deb` and `.rpm` packages grant `cap_net_raw` to `/usr/bin/mtuspy`, so it runs without sudo.
+
 ### Homebrew (macOS)
 
-This repository is its own tap:
-
-```bash
+```sh
 brew tap oetiker/mtuspy https://github.com/oetiker/mtuspy
 brew trust --formula oetiker/mtuspy/mtuspy
 brew install mtuspy
@@ -35,32 +53,11 @@ brew install mtuspy
 
 `brew trust` exists from Homebrew 6 on; skip it on older versions.
 
-### Debian, Ubuntu
+### mise
 
-Add the signed apt repository of the oposs package registry, then install. `apt upgrade` picks up new releases.
-
-```bash
-sudo install -d -m 0755 /etc/apt/keyrings
-sudo curl -fsSL https://gitea.oetiker.ch/api/packages/oposs/debian/repository.key \
-    -o /etc/apt/keyrings/gitea-oposs.asc
-echo "deb [signed-by=/etc/apt/keyrings/gitea-oposs.asc] https://gitea.oetiker.ch/api/packages/oposs/debian stable main" \
-    | sudo tee /etc/apt/sources.list.d/oposs.list
-sudo apt update
-sudo apt install mtuspy
+```sh
+mise use -g github:oetiker/mtuspy
 ```
-
-### Fedora, RHEL, Rocky, Alma
-
-Add the signed rpm repository, then install. `dnf upgrade` picks up new releases.
-
-```bash
-sudo curl -fsSL https://gitea.oetiker.ch/api/packages/oposs/rpm.repo \
-    -o /etc/yum.repos.d/oposs.repo
-sudo dnf install mtuspy
-```
-
-The `.deb` and `.rpm` packages grant `cap_net_raw` to `/usr/bin/mtuspy`, so it runs without sudo.
-The same files are on the [releases page](https://github.com/oetiker/mtuspy/releases/latest) for a machine without repository access.
 
 ### Other systems
 

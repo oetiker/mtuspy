@@ -3,7 +3,7 @@ title: MTUSPY
 section: 1
 header: mtuspy manual
 footer: mtuspy
-date: 2026-10-07
+date: 2026-10-12
 ---
 
 # NAME
@@ -88,6 +88,23 @@ Search only up to the Ethernet MTU, over IPv6, with a longer timeout:
 mtuspy -6 --max 1500 --timeout 5000 example.com
 ```
 
+# AUTHORS
+
+Tobias Oetiker <tobi@oetiker.ch>,
+Claude (Anthropic).
+
+# REPORTING BUGS
+
+<https://github.com/oetiker/mtuspy/issues>
+
+# COPYRIGHT
+
+Copyright (c) 2026 Tobias Oetiker.
+Released under the MIT licence, see
+<https://github.com/oetiker/mtuspy/blob/main/LICENSE>.
+
 # SEE ALSO
+
+Project home: <https://github.com/oetiker/mtuspy>
 
 **ping**(8), **tracepath**(8), **ip**(8)

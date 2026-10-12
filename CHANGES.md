@@ -5,8 +5,11 @@
 ### New
 
 ### Changed
+- The README opens with a recording of mtuspy finding a path MTU, and its install section lists mise beside apt, dnf and Homebrew.
+- The man page has AUTHORS, REPORTING BUGS and COPYRIGHT sections, and SEE ALSO names the project home.
 
 ### Fixed
+- mtuspy reported `Host ... is not responding to ICMP echo requests` for every host on Linux systems that allow unprivileged ICMP sockets, such as Ubuntu and Fedora, although `ping` reached the host. It now accepts the replies there.
 
 ## 0.2.0 - 2026-10-12
 ### New
