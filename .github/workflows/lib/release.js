@@ -1,6 +1,6 @@
-// repo-infra: workflow-lib v8
+// repo-infra: workflow-lib v9
 //
-// Purpose: The JavaScript the release flow and the publish pieces run (D8).
+// Purpose: The JavaScript the release flow, the publish pieces and the release build pieces run (D8, D32).
 // Choose: Always.
 // Supplies: Nothing.
 

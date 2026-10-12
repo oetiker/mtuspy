@@ -1,4 +1,4 @@
-// repo-infra: workflow-lib v8
+// repo-infra: workflow-lib v9
 'use strict';
 
 // Everything that reported on the commit, whatever workflow produced it. The

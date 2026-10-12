@@ -4,12 +4,13 @@
 
 ### New
 
-- `.deb` and `.rpm` packages for Linux on x86_64 and aarch64, attached to each release and published in the package registry on gitea.oetiker.ch (owner `oposs`). On install they grant `cap_net_raw` to `/usr/bin/mtuspy`, so it runs without sudo.
+- `.deb` and `.rpm` packages for Linux on x86_64 and aarch64, attached to each release and published in the package registry on gitea.oetiker.ch (owner `oposs`). They hold the binary and the man page of the static Linux release archives. On install they grant `cap_net_raw` to `/usr/bin/mtuspy`, so it runs without sudo.
 - Homebrew formula: `brew tap oetiker/mtuspy https://github.com/oetiker/mtuspy` and `brew install mtuspy`.
 - Man page `mtuspy(1)`, included in the release archives and the packages.
 
 ### Changed
 
+- The illumos binary links the system C library instead of a static one.
 - Releases are prepared as a release pull request (Actions, Create release PR) instead of the Release workflow. The release is tagged and published when that pull request merges.
 
 ### Fixed
