@@ -23,7 +23,7 @@ Unlike shell-based approaches that call `ping` in a loop, `mtuspy` uses native I
 
 ## Installation
 
-### Homebrew (macOS, Linux)
+### Homebrew (macOS)
 
 This repository is its own tap:
 
