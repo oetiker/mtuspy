@@ -43,7 +43,7 @@ struct Cli {
     #[arg(short, long, default_value_t = 2000)]
     timeout: u16,
 
-    /// Suppress progress output — print only the final MTU value
+    /// Suppress progress output and print only the final MTU value
     #[arg(short, long)]
     quiet: bool,
 }
@@ -61,7 +61,7 @@ fn resolve_host(host: &str, force_v4: bool, force_v6: bool) -> Result<IpAddr> {
         return Ok(ip);
     }
 
-    // DNS resolution — ToSocketAddrs requires a port
+    // DNS resolution: ToSocketAddrs requires a port
     let addr_str = format!("{host}:0");
     let addrs: Vec<_> = addr_str
         .to_socket_addrs()

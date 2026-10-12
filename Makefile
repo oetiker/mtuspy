@@ -5,7 +5,7 @@
 MAN_NAME = mtuspy
 include build/man.mk
 
-.PHONY: all build release debug run clean check fmt lint test help
+.PHONY: all build release debug run clean check fmt lint test help demo
 
 # Default target
 all: help
@@ -53,6 +53,13 @@ clean:
 check: fmt lint test
 	@echo "All checks passed!"
 
+# The README demo, docs/demo/mtuspy.webp, recorded by ansidrama from
+# demo/mtuspy.toml. cargo metadata names the target directory, because
+# CARGO_TARGET_DIR may move it out of the checkout.
+demo:
+	cargo build --release
+	cd demo && PATH="$$(cargo metadata --format-version 1 --no-deps | jq -r .target_directory)/release:$$PATH" ansidrama record mtuspy.toml
+
 # =============================================================================
 # Help
 # =============================================================================
@@ -69,4 +76,5 @@ help:
 	@echo "  make test         Run tests"
 	@echo "  make check        Format, lint, and test"
 	@echo "  make man         Build the man page into man/ (needs pandoc)"
+	@echo "  make demo        Record docs/demo/mtuspy.webp (needs ansidrama)"
 	@echo "  make clean        Clean all build artifacts"
