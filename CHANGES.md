@@ -5,6 +5,11 @@
 ### New
 
 ### Changed
+
+### Fixed
+
+## 0.2.1 - 2026-10-12
+### Changed
 - The README opens with a recording of mtuspy finding a path MTU, and its install section lists mise beside apt, dnf and Homebrew.
 - The man page has AUTHORS, REPORTING BUGS and COPYRIGHT sections, and SEE ALSO names the project home.
 - The error messages `Cannot create ICMP socket: insufficient permissions.` and `Even a minimal ICMP packet is too large; ...` and the `--help` text of `--quiet` use a colon, a semicolon or "and" where they had an em dash.
