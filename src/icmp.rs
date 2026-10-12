@@ -126,7 +126,7 @@ impl IcmpSocket {
         // Set Don't Fragment bit
         set_df_bit(&socket, &addr)?;
 
-        let id = std::process::id() as u16;
+        let id = echo_id(&socket);
 
         Ok(Self {
             socket,
@@ -175,6 +175,28 @@ impl IcmpSocket {
             }
         }
     }
+}
+
+/// The identifier the echo replies carry.
+///
+/// On Linux the kernel replaces the identifier of a request sent through an
+/// unprivileged (SOCK_DGRAM) ICMP socket with the socket's local port, and
+/// the reply carries that port. A raw socket, and macOS, keep what we send.
+fn echo_id(socket: &Socket) -> u16 {
+    #[cfg(target_os = "linux")]
+    if socket.r#type().ok() == Some(Type::DGRAM) {
+        if let Some(port) = socket
+            .local_addr()
+            .ok()
+            .and_then(|a| a.as_socket())
+            .map(|a| a.port())
+        {
+            return port;
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = socket;
+    std::process::id() as u16
 }
 
 /// Try SOCK_DGRAM (unprivileged) first, then SOCK_RAW (privileged).
@@ -519,5 +541,21 @@ mod tests {
         assert!(is_echo_reply(&addr, &reply, 42, 7));
         assert!(!is_echo_reply(&addr, &reply, 99, 7));
         assert!(!is_echo_reply(&addr, &reply, 42, 8)); // wrong seq
+    }
+
+    // On Linux an unprivileged ICMP socket replaces the echo identifier with
+    // its local port. Matching replies against the process id rejected every
+    // reply, so mtuspy reported each host as unreachable on Ubuntu and Fedora.
+    #[test]
+    fn loopback_probe_gets_a_reply() {
+        let addr = IpAddr::V4(std::net::Ipv4Addr::LOCALHOST);
+        let mut socket = match IcmpSocket::new(addr, Duration::from_secs(2)) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("skipped, no ICMP socket: {e}");
+                return;
+            }
+        };
+        assert!(matches!(socket.probe(0).unwrap(), ProbeResult::Reply));
     }
 }
