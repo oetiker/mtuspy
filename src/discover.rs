@@ -27,7 +27,7 @@ pub trait ProbeReporter {
 ///
 /// Sends ICMP echo requests with the Don't Fragment bit set, using binary search
 /// to find the largest payload that gets through. With DF set, oversized packets
-/// fail immediately via EMSGSIZE once the kernel learns the path MTU — so the
+/// fail immediately via EMSGSIZE once the kernel learns the path MTU, so the
 /// search converges in ~13 probes for the full 0–8972 range.
 pub fn discover_mtu(
     addr: IpAddr,
@@ -48,7 +48,7 @@ pub fn discover_mtu(
         }
         ProbeResult::TooLarge => {
             anyhow::bail!(
-                "Even a minimal ICMP packet is too large — \
+                "Even a minimal ICMP packet is too large; \
                  this shouldn't happen. Check your network configuration."
             );
         }

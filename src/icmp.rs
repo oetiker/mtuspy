@@ -54,7 +54,7 @@ pub fn build_echo_request(addr: &IpAddr, id: u16, seq: u16, payload_size: usize)
 
     pkt[0] = echo_request_type(addr); // Type
     pkt[1] = 0; // Code
-    // Checksum at [2..4] — filled below
+    // Checksum at [2..4], filled below
     pkt[4..6].copy_from_slice(&id.to_be_bytes());
     pkt[6..8].copy_from_slice(&seq.to_be_bytes());
 
@@ -84,9 +84,9 @@ fn is_echo_reply(addr: &IpAddr, data: &[u8], expected_id: u16, expected_seq: u16
 
 /// Result of a single probe attempt.
 pub enum ProbeResult {
-    /// Echo reply received — the packet fit through the path.
+    /// Echo reply received: the packet fit through the path.
     Reply,
-    /// Kernel returned EMSGSIZE — path MTU is smaller than the packet.
+    /// Kernel returned EMSGSIZE: path MTU is smaller than the packet.
     TooLarge,
     /// No reply within the timeout.
     Timeout,
@@ -141,7 +141,7 @@ impl IcmpSocket {
         self.seq = self.seq.wrapping_add(1);
         let pkt = build_echo_request(&self.addr, self.id, self.seq, payload_size);
 
-        // Send — may fail with EMSGSIZE if kernel knows the path MTU is too small
+        // Send. This may fail with EMSGSIZE if kernel knows the path MTU is too small
         match self.socket.send(&pkt) {
             Ok(_) => {}
             Err(e) if is_msg_size_error(&e) => return Ok(ProbeResult::TooLarge),
@@ -162,7 +162,7 @@ impl IcmpSocket {
                     if is_echo_reply(&self.addr, icmp_data, self.id, self.seq) {
                         return Ok(ProbeResult::Reply);
                     }
-                    // Not our reply — could be another ICMP message, keep waiting
+                    // Not our reply (possibly another ICMP message), keep waiting
                 }
                 Err(e)
                     if e.kind() == io::ErrorKind::WouldBlock
@@ -211,7 +211,7 @@ fn try_create_socket(domain: Domain, protocol: Protocol) -> Result<Socket> {
         return Ok(s);
     }
 
-    // Both failed — build a helpful error message
+    // Both failed: build a helpful error message
     Err(permission_error())
 }
 
@@ -395,7 +395,7 @@ fn permission_error() -> anyhow::Error {
         .unwrap_or_else(|_| "mtuspy".into());
 
     let mut msg = String::from(
-        "Cannot create ICMP socket — insufficient permissions.\n\n\
+        "Cannot create ICMP socket: insufficient permissions.\n\n\
          Fix with any of the following:\n",
     );
 
@@ -439,7 +439,7 @@ fn permission_error() -> anyhow::Error {
         .unwrap_or_else(|_| "mtuspy".into());
 
     anyhow::anyhow!(
-        "Cannot create ICMP socket — insufficient permissions.\n\n\
+        "Cannot create ICMP socket: insufficient permissions.\n\n\
          Fix with any of the following:\n\
          \n  1. Run with sudo:\n\
          \x20    sudo {exe} <host>\n\
@@ -458,7 +458,7 @@ fn permission_error() -> anyhow::Error {
     let user = std::env::var("USER").unwrap_or_else(|_| "<user>".into());
 
     anyhow::anyhow!(
-        "Cannot create ICMP socket — insufficient permissions.\n\n\
+        "Cannot create ICMP socket: insufficient permissions.\n\n\
          Fix with any of the following:\n\
          \n  1. Run with sudo:\n\
          \x20    sudo {exe} <host>\n\
@@ -473,7 +473,7 @@ fn permission_error() -> anyhow::Error {
 #[cfg(windows)]
 fn permission_error() -> anyhow::Error {
     anyhow::anyhow!(
-        "Cannot create ICMP socket — insufficient permissions.\n\n\
+        "Cannot create ICMP socket: insufficient permissions.\n\n\
          Fix: Run from an elevated command prompt (Run as Administrator).\n\
          \n  Right-click on Command Prompt or PowerShell and select\n\
          \x20 \"Run as administrator\", then run mtuspy again.\n"
@@ -488,7 +488,7 @@ fn permission_error() -> anyhow::Error {
 )))]
 fn permission_error() -> anyhow::Error {
     anyhow::anyhow!(
-        "Cannot create ICMP socket — insufficient permissions.\n\n\
+        "Cannot create ICMP socket: insufficient permissions.\n\n\
          Try running with elevated privileges (e.g. sudo).\n"
     )
 }
