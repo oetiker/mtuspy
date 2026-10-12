@@ -6,35 +6,35 @@
 class Mtuspy < Formula
   desc "Path MTU discovery tool using native ICMP with Don't Fragment bit"
   homepage "https://github.com/oetiker/mtuspy"
-  version "0.2.0"
+  version "0.2.1"
   license "MIT"
 
   # BOTTLE-START
   bottle do
-    root_url "https://github.com/oetiker/mtuspy/releases/download/v0.2.0"
-    sha256 cellar: :any_skip_relocation, arm64_sonoma: "7c7311a4889676b035943658893fedbc55a9e68fbcf44f707cfae5ece287b3b3"
+    root_url "https://github.com/oetiker/mtuspy/releases/download/v0.2.1"
+    sha256 cellar: :any_skip_relocation, arm64_sonoma: "acdfb56660ab8568144c79796a38717aa49e3aed776958b2a4e8ea03117ab550"
   end
   # BOTTLE-END
 
   on_macos do
     on_arm do
       url "https://github.com/oetiker/mtuspy/releases/download/v#{version}/mtuspy-#{version}-aarch64-apple-darwin.tar.gz"
-      sha256 "0677eca41ee1c5de0341652b3024789d5a15eb51e14f8b7a6eaabe1cc275ccce" # mac-arm
+      sha256 "efea17bfd6648c0968d40620b2fb78bc319ce46c165613339c11ef5dd03fe11e" # mac-arm
     end
     on_intel do
       url "https://github.com/oetiker/mtuspy/releases/download/v#{version}/mtuspy-#{version}-x86_64-apple-darwin.tar.gz"
-      sha256 "5a78284e6b6cc36bc24f23f62b9d848b5652c523c7e5289b8677c1e35339e641" # mac-x86
+      sha256 "2b4bed9034a5325fdf7518204b7b559b935affa74ccc81542472b06ea7914e37" # mac-x86
     end
   end
 
   on_linux do
     on_intel do
       url "https://github.com/oetiker/mtuspy/releases/download/v#{version}/mtuspy-#{version}-x86_64-unknown-linux-musl.tar.gz"
-      sha256 "39a58bc00b609ffc85d8a020a93fd1f56e2aaaa04f8c565bbf189ac9d62c597b" # linux-x86
+      sha256 "97f211aea2f112737dccd99acfba57f89341a4ee73d41359f71779cfc0e412c2" # linux-x86
     end
     on_arm do
       url "https://github.com/oetiker/mtuspy/releases/download/v#{version}/mtuspy-#{version}-aarch64-unknown-linux-musl.tar.gz"
-      sha256 "9dfc45b5b4b5bacd9f1aee8cef00d7dc27811b31fe72742ab1624817ddc12e95" # linux-arm
+      sha256 "cca08f173e4015f2f6cd6fe702f1f5514e0e04eb1d41c18fefd1b575f8627443" # linux-arm
     end
   end
 
