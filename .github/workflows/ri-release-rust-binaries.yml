@@ -2,9 +2,9 @@
 #
 # Purpose: Build the release archives of a Rust program for the seven native targets (D32).
 # Choose: The project is a Rust program users install (native-targets in references/project-shape.md).
-# Supplies: Cargo.toml with the binary `bin`, README.md, LICENSE, and `make man` writing man/.
+# Supplies: Cargo.toml whose package builds the one binary `bin` (a second one fails the build), README.md, LICENSE, and `make man` writing man/.
 # Pieces: man, man-lua
-# Produces: The artifacts release-asset-<target>, each holding <bin>-<version>-<target>.tar.gz (.zip on Windows); list all seven in release_assets.
+# Produces: The artifacts release-asset-<target>, each holding <bin>-<version>-<target>.tar.gz (.zip on Windows, without man/); list all seven in release_assets.
 # Call:
 #   binaries:
 #     uses: ./.github/workflows/ri-release-rust-binaries.yml
@@ -118,6 +118,26 @@ jobs:
       - name: Install cross
         if: ${{ matrix.cross }}
         run: cargo install cross --version 0.2.5 --locked
+
+      # `--bin` builds the one binary. A crate with a second [[bin]] released
+      # green without it: missing from every archive, package and formula,
+      # with no warning. Binaries of other workspace members, an xtask for
+      # example, are not part of the program and pass.
+      - name: Refuse a package with a second binary
+        shell: bash
+        env:
+          BIN: ${{ inputs.bin }}
+        run: |
+          set -euo pipefail
+          others=$(cargo metadata --no-deps --format-version 1 | jq -r --arg bin "$BIN" '
+            .packages[] | select(any(.targets[]; .name == $bin and (.kind | index("bin"))))
+            | [.targets[] | select((.kind | index("bin")) and .name != $bin) | .name]
+            | select(length > 0) | join(", ")')
+          others=${others//$'\r'/}
+          if [ -n "$others" ]; then
+            echo "::error::the package of $BIN also builds $others; the archives, packages and formula carry $BIN alone, so move $others into another package"
+            exit 1
+          fi
 
       - name: Build
         shell: bash

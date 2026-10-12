@@ -2,9 +2,9 @@
 #
 # Purpose: Build .deb and .rpm packages with nfpm from the musl archives, and read each back (D32).
 # Choose: The project is a Rust program users install on Linux (linux-packages in references/project-shape.md).
-# Supplies: An nfpm config whose contents take their sources from STAGE; every dollar-brace name in it is set by the piece or by packagers.
+# Supplies: An nfpm config whose contents take their sources from STAGE and name the man pages with .gz (the piece gzips them); the piece sets VERSION, SOURCE_DATE_EPOCH, MTIME, PACKAGER, TARGET, STAGE and ARCH, packagers sets every other dollar-brace name.
 # Pieces: ri-release-rust-binaries, workflow-lib
-# Produces: The artifact release-asset-packages, <bin>_<version>-1_<arch>.deb and <bin>-<version>-1.<arch>.rpm; list them in release_assets.
+# Produces: The artifact release-asset-packages, <name>_<version>-<release>_<amd64|arm64>.deb and <name>-<version>-<release>.<x86_64|aarch64>.rpm, with name and release from the config; list them in release_assets.
 # Call:
 #   packages:
 #     needs: binaries

@@ -4,7 +4,7 @@
 # Choose: The project is a Rust program users install with Homebrew (homebrew in references/project-shape.md).
 # Supplies: Formula/<bin>.rb from the template in references/project-shape.md, listed in release_files.
 # Pieces: ri-release-rust-binaries, workflow-lib
-# Produces: The artifacts release-asset-bottle-<os> (list the arm64 bottle in release_assets) and release-files with the formula; no other job may write release-files.
+# Produces: The artifact release-asset-bottle-macos-14 with <bin>-<version>.arm64_sonoma.bottle.tar.gz (list it in release_assets) and release-files with the formula; no other job may write release-files.
 # Call:
 #   homebrew:
 #     needs: binaries
