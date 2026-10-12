@@ -1,0 +1,107 @@
+# repo-infra: ri-release-nfpm v1
+#
+# Purpose: Build .deb and .rpm packages with nfpm from the musl archives, and read each back (D32).
+# Choose: The project is a Rust program users install on Linux (linux-packages in references/project-shape.md).
+# Supplies: An nfpm config whose contents take their sources from STAGE and name the man pages with .gz (the piece gzips them); the piece sets VERSION, SOURCE_DATE_EPOCH, MTIME, PACKAGER, TARGET, STAGE and ARCH, packagers sets every other dollar-brace name.
+# Pieces: ri-release-rust-binaries, workflow-lib
+# Produces: The artifact release-asset-packages, <name>_<version>-<release>_<amd64|arm64>.deb and <name>-<version>-<release>.<x86_64|aarch64>.rpm, with name and release from the config; list them in release_assets.
+# Call:
+#   packages:
+#     needs: binaries
+#     uses: ./.github/workflows/ri-release-nfpm.yml
+#     with:
+#       version: ${{ inputs.version }}
+#       ref: ${{ inputs.ref }}
+#       config: nfpm.yaml
+#       packagers: '{"deb": {}, "rpm": {}}'
+#       archives: x86_64-unknown-linux-musl aarch64-unknown-linux-musl
+
+name: Build the Linux packages
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: The version the release builds, from release-build.yml.
+        type: string
+        required: true
+      ref:
+        description: The release branch commit to build, from release-build.yml (D28).
+        type: string
+        required: true
+      config:
+        description: Path of the nfpm configuration in the repository, for example nfpm.yaml.
+        type: string
+        required: true
+      packagers:
+        description: JSON object with one key per packager, deb or rpm, each value an object of further variable names and their values for that packager.
+        type: string
+        required: true
+      archives:
+        description: Space-separated targets whose release-asset-<target> archive is unpacked and packaged, for example x86_64-unknown-linux-musl aarch64-unknown-linux-musl.
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  packages:
+    name: Build the deb and rpm packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      # Each archive lands in archives/release-asset-<target>/.
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: release-asset-*
+          path: archives
+
+      - name: Install nfpm
+        env:
+          NFPM_VERSION: 2.47.0
+          NFPM_SHA256: 0660ca602b2d2d2ae4781a06c692b3eeb9d437ffea05b831d76e41f4a3188783
+        run: |
+          set -euo pipefail
+          tarball="nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$tarball" \
+            "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/$tarball"
+          echo "$NFPM_SHA256  $RUNNER_TEMP/$tarball" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/nfpm"
+          tar -xzf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP/nfpm" nfpm
+          echo "$RUNNER_TEMP/nfpm" >> "$GITHUB_PATH"
+
+      # dpkg-deb is on the runner; rpm reads the .rpm back.
+      - name: Install rpm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+
+      # lib/nfpm.js checks the inputs, unpacks each archive, fills in the
+      # config, runs nfpm once per packager and reads every package back.
+      # A refusal is one ::error:: line naming what is wrong.
+      - name: Build and read back the packages
+        uses: actions/github-script@v9
+        env:
+          VERSION: ${{ inputs.version }}
+          CONFIG: ${{ inputs.config }}
+          PACKAGERS: ${{ inputs.packagers }}
+          ARCHIVES: ${{ inputs.archives }}
+        with:
+          script: |
+            const { run } = require(`${process.env.GITHUB_WORKSPACE}/.github/workflows/lib/nfpm.js`);
+            try {
+              for (const line of run(process.env)) core.info(line);
+            } catch (error) {
+              core.setFailed(error.message);
+            }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-asset-packages
+          path: packages/
+          if-no-files-found: error
