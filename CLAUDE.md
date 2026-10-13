@@ -49,6 +49,7 @@ All platform differences are in `src/icmp.rs` behind `#[cfg]` attributes:
 - **Permission errors** (`permission_error`): platform-specific advice (sudo/setuid/setcap/sysctl on Linux, sudo/setuid on macOS, Run as Administrator on Windows, sudo/RBAC on Illumos)
 - **Winsock FFI**: inline `unsafe extern "system"` block for `setsockopt` on Windows (linked to `ws2_32`)
 - Unix platforms share a `setsockopt_int` helper
+- **CAP_NET_RAW** (`net_raw`, Linux): the packages set `cap_net_raw+p`; `create_raw_socket` raises it into the effective set (capget/capset) only around the `SOCK_RAW` call. Never go back to `+ep`: the kernel refuses to exec such a binary where NET_RAW is outside the bounding set (#5)
 
 ## Infrastructure (repo-infra)
 
@@ -64,7 +65,7 @@ The callers and the project-owned files are ours:
 ## Man page and packages
 
 - `docs/manual.md` is the man page source; `make man` builds `man/mtuspy.1` (needs pandoc, `man/` is gitignored).
-- `.deb`/`.rpm` metadata is in `Cargo.toml`; `pkg/debian/postinst` and `pkg/rpm/post-install.sh` set `cap_net_raw` on install.
+- `.deb`/`.rpm` metadata is in `Cargo.toml`; `pkg/debian/postinst` and `pkg/rpm/post-install.sh` set `cap_net_raw+p` on install.
 - `Formula/mtuspy.rb` is rewritten by the release build; keep its marker comments.
 
 ## Release process

@@ -4,10 +4,12 @@
 # wherever net.ipv4.ping_group_range excludes the user. A failed setcap (a
 # filesystem without xattrs, a missing libcap2-bin) leaves mtuspy installed; it
 # then prints its own permission advice when run.
+# Permitted only (+p), mtuspy raises it while it opens the raw socket: with +ep
+# the kernel refused to exec it in a container without NET_RAW (#5).
 set -e
 if [ "$1" = configure ]; then
     if command -v setcap >/dev/null 2>&1; then
-        setcap cap_net_raw+ep /usr/bin/mtuspy \
+        setcap cap_net_raw+p /usr/bin/mtuspy \
             || echo "mtuspy: setcap cap_net_raw failed; run mtuspy with sudo" >&2
     fi
 fi

@@ -96,7 +96,7 @@ sudo mtuspy example.com
 
 # Or grant permanent access (pick one):
 sudo chown root:root /usr/local/bin/mtuspy && sudo chmod u+s /usr/local/bin/mtuspy
-sudo setcap cap_net_raw+ep /usr/local/bin/mtuspy
+sudo setcap cap_net_raw+p /usr/local/bin/mtuspy
 sudo sysctl net.ipv4.ping_group_range="0 2147483647"
 ```
 

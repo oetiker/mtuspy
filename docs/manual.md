@@ -53,7 +53,9 @@ When neither is allowed, it prints the commands that grant access on the current
 
 On Linux, the unprivileged socket works for users whose group lies in the range of the sysctl `net.ipv4.ping_group_range`.
 The raw socket needs root or the capability `cap_net_raw`.
-The Debian and RPM packages set `cap_net_raw` on `/usr/bin/mtuspy` when they are installed.
+The Debian and RPM packages set `cap_net_raw` as permitted (`cap_net_raw+p`) on `/usr/bin/mtuspy` when they are installed.
+**mtuspy** makes the capability effective only while it opens the raw socket.
+Where `CAP_NET_RAW` is outside the capability bounding set, as in a container started without `NET_RAW`, the error message names the container options `--cap-add NET_RAW` and `--sysctl net.ipv4.ping_group_range` instead of sudo, setuid root and setcap.
 
 On macOS, the unprivileged socket works for every user.
 
