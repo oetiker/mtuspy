@@ -207,12 +207,24 @@ fn try_create_socket(domain: Domain, protocol: Protocol) -> Result<Socket> {
     }
 
     // Fall back to raw socket (needs root/admin or CAP_NET_RAW)
-    if let Ok(s) = Socket::new(domain, Type::RAW, Some(protocol)) {
+    if let Ok(s) = create_raw_socket(domain, protocol) {
         return Ok(s);
     }
 
     // Both failed: build a helpful error message
     Err(permission_error())
+}
+
+/// Linux: raise CAP_NET_RAW from the permitted set for the raw socket only.
+#[cfg(target_os = "linux")]
+fn create_raw_socket(domain: Domain, protocol: Protocol) -> io::Result<Socket> {
+    let _raised = net_raw::raise()?;
+    Socket::new(domain, Type::RAW, Some(protocol))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn create_raw_socket(domain: Domain, protocol: Protocol) -> io::Result<Socket> {
+    Socket::new(domain, Type::RAW, Some(protocol))
 }
 
 // =============================================================================
@@ -393,11 +405,47 @@ fn permission_error() -> anyhow::Error {
     let exe = std::env::current_exe()
         .map(|p| p.display().to_string())
         .unwrap_or_else(|_| "mtuspy".into());
+    let has_setcap = std::path::Path::new("/usr/sbin/setcap").exists()
+        || std::path::Path::new("/sbin/setcap").exists();
+    let range = std::fs::read_to_string("/proc/sys/net/ipv4/ping_group_range").ok();
 
-    let mut msg = String::from(
-        "Cannot create ICMP socket: insufficient permissions.\n\n\
-         Fix with any of the following:\n",
-    );
+    anyhow::anyhow!(
+        "{}",
+        linux_permission_advice(&exe, has_setcap, net_raw::bounded(), range.as_deref())
+    )
+}
+
+/// The Linux permission advice. Outside the bounding set (a container
+/// started without NET_RAW) only the container's start options can help.
+#[cfg(target_os = "linux")]
+fn linux_permission_advice(
+    exe: &str,
+    has_setcap: bool,
+    net_raw_bounded: bool,
+    ping_group_range: Option<&str>,
+) -> String {
+    let mut msg = String::from("Cannot create ICMP socket: insufficient permissions.\n\n");
+
+    if !net_raw_bounded {
+        msg.push_str(
+            "CAP_NET_RAW is outside the capability bounding set, as in a container\n\
+             started without NET_RAW, so sudo, setuid root and setcap cannot help.\n\n\
+             Fix with any of the following:\n\
+             \n  1. Start the container with the capability:\n\
+             \x20    podman run --cap-add NET_RAW ...\n",
+        );
+        if let Some(range) = ping_group_range {
+            msg.push_str(&format!(
+                "\n  2. Start the container with unprivileged ICMP for all users:\n\
+                 \x20    podman run --sysctl net.ipv4.ping_group_range=\"0 2147483647\" ...\n\
+                 \x20    Current setting: {}\n",
+                range.trim()
+            ));
+        }
+        return msg;
+    }
+
+    msg.push_str("Fix with any of the following:\n");
 
     // Option 1: sudo (always works)
     msg.push_str(&format!("\n  1. Run with sudo:\n     sudo {exe} <host>\n"));
@@ -409,18 +457,17 @@ fn permission_error() -> anyhow::Error {
          \x20    sudo chmod u+s {exe}\n"
     ));
 
-    // Option 3: setcap (depends on filesystem)
-    if std::path::Path::new("/usr/sbin/setcap").exists()
-        || std::path::Path::new("/sbin/setcap").exists()
-    {
+    // Option 3: setcap (depends on filesystem). Permitted only: mtuspy
+    // raises it into the effective set itself.
+    if has_setcap {
         msg.push_str(&format!(
             "\n  3. Grant ICMP capability (needs filesystem with xattr support):\n\
-             \x20    sudo setcap cap_net_raw+ep {exe}\n"
+             \x20    sudo setcap cap_net_raw+p {exe}\n"
         ));
     }
 
     // Option 4: sysctl (Linux-specific)
-    if let Ok(range) = std::fs::read_to_string("/proc/sys/net/ipv4/ping_group_range") {
+    if let Some(range) = ping_group_range {
         msg.push_str(&format!(
             "\n  4. Allow unprivileged ICMP for all users (system-wide):\n\
              \x20    sudo sysctl net.ipv4.ping_group_range=\"0 2147483647\"\n\
@@ -429,7 +476,7 @@ fn permission_error() -> anyhow::Error {
         ));
     }
 
-    anyhow::anyhow!("{msg}")
+    msg
 }
 
 #[cfg(target_os = "macos")]
@@ -491,6 +538,108 @@ fn permission_error() -> anyhow::Error {
         "Cannot create ICMP socket: insufficient permissions.\n\n\
          Try running with elevated privileges (e.g. sudo).\n"
     )
+}
+
+// =============================================================================
+// Linux: CAP_NET_RAW
+// =============================================================================
+
+/// CAP_NET_RAW for the raw socket, raised from the permitted set.
+///
+/// The packages set `cap_net_raw+p` without the effective bit: with the
+/// effective bit the kernel refuses to exec the binary at all where the
+/// capability is outside the bounding set, as in a container started without
+/// NET_RAW. So mtuspy raises it into the effective set itself, only around the
+/// raw socket call. libc has no capget/capset wrapper, hence the syscalls.
+#[cfg(target_os = "linux")]
+mod net_raw {
+    use std::io;
+
+    pub const CAP_NET_RAW: u32 = 13;
+    const LINUX_CAPABILITY_VERSION_3: u32 = 0x2008_0522;
+
+    #[repr(C)]
+    struct CapHeader {
+        version: u32,
+        pid: libc::c_int,
+    }
+
+    /// One of the two 32-bit halves of the version 3 capability sets.
+    #[repr(C)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq)]
+    pub struct CapData {
+        pub effective: u32,
+        pub permitted: u32,
+        pub inheritable: u32,
+    }
+
+    /// The sets with `cap` added to the effective set, or None when `cap` is
+    /// not permitted and the kernel would refuse it.
+    pub fn with_effective(sets: [CapData; 2], cap: u32) -> Option<[CapData; 2]> {
+        let (half, bit) = ((cap / 32) as usize, 1u32 << (cap % 32));
+        if sets[half].permitted & bit == 0 {
+            return None;
+        }
+        let mut raised = sets;
+        raised[half].effective |= bit;
+        Some(raised)
+    }
+
+    fn header() -> CapHeader {
+        CapHeader {
+            version: LINUX_CAPABILITY_VERSION_3,
+            pid: 0,
+        }
+    }
+
+    pub fn capget() -> io::Result<[CapData; 2]> {
+        let mut hdr = header();
+        let mut sets = [CapData::default(); 2];
+        // SAFETY: capget reads the header and writes two CapData structs,
+        // the layout of a version 3 header.
+        let rc = unsafe { libc::syscall(libc::SYS_capget, &mut hdr, sets.as_mut_ptr()) };
+        if rc != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(sets)
+    }
+
+    fn capset(sets: &[CapData; 2]) -> io::Result<()> {
+        let mut hdr = header();
+        // SAFETY: capset reads the header and two CapData structs.
+        let rc = unsafe { libc::syscall(libc::SYS_capset, &mut hdr, sets.as_ptr()) };
+        if rc != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(())
+    }
+
+    /// CAP_NET_RAW is effective while this lives; dropping it restores the
+    /// sets from before.
+    pub struct Raised {
+        previous: [CapData; 2],
+    }
+
+    impl Drop for Raised {
+        fn drop(&mut self) {
+            let _ = capset(&self.previous);
+        }
+    }
+
+    pub fn raise() -> io::Result<Raised> {
+        let previous = capget()?;
+        let raised = with_effective(previous, CAP_NET_RAW)
+            .ok_or_else(|| io::Error::from_raw_os_error(libc::EPERM))?;
+        capset(&raised)?;
+        Ok(Raised { previous })
+    }
+
+    /// Whether CAP_NET_RAW is in the bounding set. Without it no sudo,
+    /// setuid or file capability can grant it.
+    pub fn bounded() -> bool {
+        // SAFETY: PR_CAPBSET_READ takes a capability number and reads nothing else.
+        unsafe { libc::prctl(libc::PR_CAPBSET_READ, CAP_NET_RAW as libc::c_ulong, 0, 0, 0) == 1 }
+    }
 }
 
 #[cfg(test)]
@@ -557,5 +706,68 @@ mod tests {
             }
         };
         assert!(matches!(socket.probe(0).unwrap(), ProbeResult::Reply));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn net_raw_raised_into_effective_when_permitted() {
+        use net_raw::{CAP_NET_RAW, CapData, with_effective};
+        let bit = 1 << CAP_NET_RAW;
+        let sets = [
+            CapData {
+                effective: 0b1,
+                permitted: bit | 0b1,
+                inheritable: 0,
+            },
+            CapData::default(),
+        ];
+        let raised = with_effective(sets, CAP_NET_RAW).unwrap();
+        assert_eq!(raised[0].effective, bit | 0b1);
+        assert_eq!(raised[0].permitted, sets[0].permitted);
+        assert_eq!(raised[1], sets[1]);
+    }
+
+    // A file capability set as cap_net_raw+p leaves the capability permitted
+    // but not effective; outside the bounding set it is not even permitted.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn net_raw_not_raised_unless_permitted() {
+        use net_raw::{CAP_NET_RAW, CapData, with_effective};
+        let sets = [CapData::default(); 2];
+        assert_eq!(with_effective(sets, CAP_NET_RAW), None);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn net_raw_raise_restores_previous_sets() {
+        let before = net_raw::capget().unwrap();
+        drop(net_raw::raise());
+        assert_eq!(net_raw::capget().unwrap(), before);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn advice_on_a_host_offers_setcap_permitted_only() {
+        let msg = linux_permission_advice("/usr/bin/mtuspy", true, true, Some("1\t0"));
+        assert!(msg.contains("sudo /usr/bin/mtuspy <host>"));
+        assert!(msg.contains("sudo setcap cap_net_raw+p /usr/bin/mtuspy"));
+        assert!(!msg.contains("+ep"));
+        assert!(msg.contains("Current setting: 1\t0"));
+        assert!(!msg.contains("--cap-add"));
+    }
+
+    // Outside the bounding set (a container without NET_RAW) neither sudo,
+    // setuid nor setcap can grant CAP_NET_RAW.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn advice_in_container_without_net_raw() {
+        let msg = linux_permission_advice("/usr/bin/mtuspy", true, false, Some("1\t0"));
+        assert!(msg.starts_with("Cannot create ICMP socket: insufficient permissions."));
+        assert!(msg.contains("--cap-add NET_RAW"));
+        assert!(msg.contains("--sysctl net.ipv4.ping_group_range=\"0 2147483647\""));
+        assert!(msg.contains("Current setting: 1\t0"));
+        assert!(!msg.contains("sudo /usr/bin/mtuspy"));
+        assert!(!msg.contains("chmod u+s"));
+        assert!(!msg.contains("setcap cap_net_raw"));
     }
 }
