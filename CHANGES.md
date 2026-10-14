@@ -5,6 +5,7 @@
 ### New
 
 ### Changed
+- Builds and releases run on repo-infra's shared workflows at `@v2`; the copies under `.github/workflows/` are gone.
 
 ### Fixed
 - The packaged mtuspy refused to start in a container without `NET_RAW`, such as a default podman or docker container, with `bash: /usr/bin/mtuspy: Operation not permitted`. The packages now set `cap_net_raw+p` instead of `cap_net_raw+ep`, so mtuspy starts there, uses the unprivileged ICMP socket where `net.ipv4.ping_group_range` allows it, and otherwise prints its own advice, which names `--cap-add NET_RAW` and `--sysctl net.ipv4.ping_group_range`. The advice on a host suggests `setcap cap_net_raw+p` too. (#5)
