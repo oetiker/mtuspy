@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   binaries:
-    uses: ./.github/workflows/ri-release-rust-binaries.yml
+    uses: oposs/repo-infra/.github/workflows/ri-release-rust-binaries.yml@v2
     with:
       version: ${{ inputs.version }}
       ref: ${{ inputs.ref }}
@@ -30,7 +30,7 @@ jobs:
 
   packages:
     needs: binaries
-    uses: ./.github/workflows/ri-release-nfpm.yml
+    uses: oposs/repo-infra/.github/workflows/ri-release-nfpm.yml@v2
     with:
       version: ${{ inputs.version }}
       ref: ${{ inputs.ref }}
@@ -40,7 +40,7 @@ jobs:
 
   homebrew:
     needs: binaries
-    uses: ./.github/workflows/ri-release-homebrew.yml
+    uses: oposs/repo-infra/.github/workflows/ri-release-homebrew.yml@v2
     with:
       version: ${{ inputs.version }}
       ref: ${{ inputs.ref }}
