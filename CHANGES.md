@@ -5,6 +5,11 @@
 ### New
 
 ### Changed
+
+### Fixed
+
+## 0.2.2 - 2026-10-14
+### Changed
 - Builds and releases run on repo-infra's shared workflows at `@v2`; the copies under `.github/workflows/` are gone.
 
 ### Fixed
