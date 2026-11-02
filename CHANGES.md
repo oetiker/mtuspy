@@ -5,6 +5,7 @@
 ### New
 
 ### Changed
+- The Homebrew bottle for Apple Silicon Macs now installs on the oldest macOS `mtuspy` runs on, not only on macOS 14 Sonoma and later. Until now, `brew install` on an older Mac built the formula from source, which fails when the Command Line Tools are older than the macOS release.
 
 ### Fixed
 - On a Linux host without `setcap`, the advice after `Cannot create ICMP socket: insufficient permissions.` numbered its steps `1.`, `2.`, `4.`, skipping `3.`. The steps are now numbered without gaps, whichever of them apply. (#12)
