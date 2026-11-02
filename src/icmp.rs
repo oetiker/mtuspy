@@ -425,57 +425,63 @@ fn linux_permission_advice(
     ping_group_range: Option<&str>,
 ) -> String {
     let mut msg = String::from("Cannot create ICMP socket: insufficient permissions.\n\n");
+    let range = ping_group_range.map(str::trim);
+
+    // Some steps are offered only when they can work, so each step takes
+    // its number from its place in the list.
+    let mut steps: Vec<String> = Vec::new();
 
     if !net_raw_bounded {
         msg.push_str(
             "CAP_NET_RAW is outside the capability bounding set, as in a container\n\
-             started without NET_RAW, so sudo, setuid root and setcap cannot help.\n\n\
-             Fix with any of the following:\n\
-             \n  1. Start the container with the capability:\n\
-             \x20    podman run --cap-add NET_RAW ...\n",
+             started without NET_RAW, so sudo, setuid root and setcap cannot help.\n\n",
         );
-        if let Some(range) = ping_group_range {
-            msg.push_str(&format!(
-                "\n  2. Start the container with unprivileged ICMP for all users:\n\
+        steps.push(
+            "Start the container with the capability:\n\
+             \x20    podman run --cap-add NET_RAW ...\n"
+                .into(),
+        );
+        if let Some(range) = range {
+            steps.push(format!(
+                "Start the container with unprivileged ICMP for all users:\n\
                  \x20    podman run --sysctl net.ipv4.ping_group_range=\"0 2147483647\" ...\n\
-                 \x20    Current setting: {}\n",
-                range.trim()
+                 \x20    Current setting: {range}\n"
             ));
         }
-        return msg;
+    } else {
+        // sudo always works.
+        steps.push(format!("Run with sudo:\n     sudo {exe} <host>\n"));
+
+        // setuid root works on any filesystem.
+        steps.push(format!(
+            "Set the binary setuid root (works on any filesystem):\n\
+             \x20    sudo chown root:root {exe}\n\
+             \x20    sudo chmod u+s {exe}\n"
+        ));
+
+        // setcap depends on the filesystem. Permitted only: mtuspy raises
+        // it into the effective set itself.
+        if has_setcap {
+            steps.push(format!(
+                "Grant ICMP capability (needs filesystem with xattr support):\n\
+                 \x20    sudo setcap cap_net_raw+p {exe}\n"
+            ));
+        }
+
+        // sysctl is Linux-specific.
+        if let Some(range) = range {
+            steps.push(format!(
+                "Allow unprivileged ICMP for all users (system-wide):\n\
+                 \x20    sudo sysctl net.ipv4.ping_group_range=\"0 2147483647\"\n\
+                 \x20    Current setting: {range}\n"
+            ));
+        }
     }
 
     msg.push_str("Fix with any of the following:\n");
-
-    // Option 1: sudo (always works)
-    msg.push_str(&format!("\n  1. Run with sudo:\n     sudo {exe} <host>\n"));
-
-    // Option 2: setuid root (always works on any filesystem)
-    msg.push_str(&format!(
-        "\n  2. Set the binary setuid root (works on any filesystem):\n\
-         \x20    sudo chown root:root {exe}\n\
-         \x20    sudo chmod u+s {exe}\n"
-    ));
-
-    // Option 3: setcap (depends on filesystem). Permitted only: mtuspy
-    // raises it into the effective set itself.
-    if has_setcap {
-        msg.push_str(&format!(
-            "\n  3. Grant ICMP capability (needs filesystem with xattr support):\n\
-             \x20    sudo setcap cap_net_raw+p {exe}\n"
-        ));
+    for (n, step) in steps.iter().enumerate() {
+        msg.push_str(&format!("\n  {}. {step}", n + 1));
     }
-
-    // Option 4: sysctl (Linux-specific)
-    if let Some(range) = ping_group_range {
-        msg.push_str(&format!(
-            "\n  4. Allow unprivileged ICMP for all users (system-wide):\n\
-             \x20    sudo sysctl net.ipv4.ping_group_range=\"0 2147483647\"\n\
-             \x20    Current setting: {}\n",
-            range.trim()
-        ));
-    }
-
     msg
 }
 
@@ -769,5 +775,36 @@ mod tests {
         assert!(!msg.contains("sudo /usr/bin/mtuspy"));
         assert!(!msg.contains("chmod u+s"));
         assert!(!msg.contains("setcap cap_net_raw"));
+    }
+
+    /// The step numbers of the advice, in the order they appear.
+    #[cfg(target_os = "linux")]
+    fn advice_step_numbers(msg: &str) -> Vec<u32> {
+        msg.lines()
+            .filter_map(|line| line.strip_prefix("  ")?.split_once(". ")?.0.parse().ok())
+            .collect()
+    }
+
+    // Each step is numbered by its place in the list, whichever optional
+    // steps are left out (#12).
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn advice_steps_numbered_consecutively() {
+        let cases = [
+            (true, true, Some("1\t0"), vec![1, 2, 3, 4]),
+            (false, true, Some("1\t0"), vec![1, 2, 3]),
+            (true, true, None, vec![1, 2, 3]),
+            (false, true, None, vec![1, 2]),
+            (true, false, Some("1\t0"), vec![1, 2]),
+            (true, false, None, vec![1]),
+        ];
+        for (has_setcap, bounded, range, want) in cases {
+            let msg = linux_permission_advice("/usr/bin/mtuspy", has_setcap, bounded, range);
+            assert_eq!(
+                advice_step_numbers(&msg),
+                want,
+                "setcap={has_setcap} bounded={bounded} range={range:?}\n{msg}"
+            );
+        }
     }
 }
