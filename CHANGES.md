@@ -7,6 +7,7 @@
 ### Changed
 
 ### Fixed
+- On a Linux host without `setcap`, the advice after `Cannot create ICMP socket: insufficient permissions.` numbered its steps `1.`, `2.`, `4.`, skipping `3.`. The steps are now numbered without gaps, whichever of them apply. (#12)
 
 ## 0.2.2 - 2026-10-14
 ### Changed
